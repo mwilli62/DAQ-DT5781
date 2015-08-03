@@ -34,7 +34,7 @@ COPTS = -fPIC -DLINUX -Wall $(shell root-config --cflags) -I/usr/local/include/C
 
 LIBS = $(shell root-config --libs --glibs) -L/usr/local/lib/CAEN -lCAENDPPLib
 
-CFLAGS += -Wall -I$(SRCDIR)
+CFLAGS += -Wall -O2 -I$(SRCDIR)
 VPATH = src
 LDFLAGS= 
 
