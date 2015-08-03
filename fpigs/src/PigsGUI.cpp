@@ -7,6 +7,8 @@
  */
 
 #include "PigsGUI.h"
+#include <cstdlib>
+#include <math.h>
 
 int32_t PigsGUI::InitDAQ() {
     // Initialization of the PigsDAQ object, DPP library, DAQ configuration, storage
@@ -42,7 +44,7 @@ int32_t PigsGUI::InitDAQ() {
         fDTinfo->Update();
     }
     daq->setGUI(this);            // set GUI pointer
-    return ret;
+	return ret;
 }
 
 int32_t PigsGUI::DisconnectDAQ() {
@@ -75,8 +77,8 @@ int32_t PigsGUI::RunAcquisition() {
         if(!ret) {
             daq->RefreshCurrHist();             // transfer data to TH1F
             for (ch=0; ch<4;ch++) {
-                cCurrHCanvas->GetPad(ch+1)->cd();
-                daq->getCurrHist(ch)->Draw();         // plot latest TH1F
+				cCurrHCanvas->GetPad(ch+1)->cd();
+                //daq->getCurrHist(ch)->Draw();         // plot latest TH1F
                 cCurrHCanvas->GetPad(ch+1)->Update();
                 ev->spectrum[ch]        = daq->getCurrHist(ch); // save current measurement
                 ev->realTime[ch]        = daq->getRealTime(ch);
@@ -89,15 +91,19 @@ int32_t PigsGUI::RunAcquisition() {
                     ev->detectorResponse[ch]= this->CalcResponseV2(ch);
                 else
                     ev->detectorResponse[ch]= this->CalcResponseV1(ch);
+
             }
             ev->acqTime = daq->GetAcquisitionLoopTime();
-            ev->arrowAngle = -1.0;               // TODO calculate arrow angle
+			ev->arrowAngle = -1.0;               // TODO calculate arrow angle
             gSystem->ProcessEvents();
             cCurrHCanvas->Modified();
             storage->getTree()->Fill();
-            UpdateHistory();                     // Updates the history & average tabs
+			get_fuzzy(ev->goodCounts);
+			UpdateHistory();                     // Updates the history & average tabs
+			UpdateArrow();                       // Updates the arrow tab
+
         }
-        fHCurrHProgressBar->SetPosition(1);
+		fHCurrHProgressBar->SetPosition(1);
     }
     storage->getTree()->Write();                 // This may be excessive, but we have SSD for storage :)
     fStartDAQ->SetState(kButtonUp);
@@ -259,6 +265,46 @@ void PigsGUI::SetProgressBarPosition(Float_t fposition) {
     gClient->NeedRedraw(fHCurrHProgressBar);
 }
 
+//void PigsGUI::Arrow_Coords(double arrow_func, double xpos2, double ypos2) {
+	// Set arrow x,y coordinates
+    // Use calculated fuzzy output *22.5 and sin/cos to solve for x,y
+
+	
+//}
+
+// Update the arrow tab
+void PigsGUI::UpdateArrow() {
+	cArrowCanvas->cd();
+	// Define where origin is
+	ox = 0.5;
+	oy = 0.5;
+	// Create fake fuzzy output between 0-16
+	fake_fuzzy = 16*((float) rand()) / (float) RAND_MAX;
+	//fake_fuzzy = (rand()%16);
+	cout << fake_fuzzy << "////";
+	// Create x,y around circle
+	fuzz_angle = fake_fuzzy*22.5;
+	cout << fuzz_angle << "////";
+	comp_x2 = 0.5 + 0.2*cos(fuzz_angle*M_PI/180);
+	comp_y2 = 0.5 + 0.2*sin(fuzz_angle*M_PI/180);
+	//comp_x2 = ox - (comp_x1 - ox);
+	//comp_y2 = oy - (comp_y1 - oy);
+	comp_x1 = -comp_x2 + 2*ox;
+	comp_y1 = -comp_y2 + 2*oy;
+	cout << comp_x1 <<"////"<< comp_x2 <<"////"<< comp_y1 <<"////"<< comp_y2;
+	ar1->SetX1(comp_x1);
+	ar1->SetY1(comp_y1);
+	ar1->SetX2(comp_x2);
+	ar1->SetY2(comp_y2);
+    ar1->SetAngle(30);
+    ar1->SetLineWidth(5);
+    ar1->SetFillColor(4);
+	cArrowCanvas->Modified();
+	cArrowCanvas->Update();
+	
+}
+
+
 PigsGUI::PigsGUI(const TGWindow *p) : TGMainFrame(p, fGUIsizeX, fGUIsizeY)  {
     // Creates the GUI
     if(fVerbose) std::cout<<__PRETTY_FUNCTION__ << std::endl;
@@ -399,8 +445,8 @@ PigsGUI::PigsGUI(const TGWindow *p) : TGMainFrame(p, fGUIsizeX, fGUIsizeY)  {
     }
     fTabHisto->AddFrame(fLastMeas, new TGLayoutHints(kLHintsLeft | kLHintsTop,2,2,2,2));
 
-    // *** Container of "Sum" ***
-    fTabSum = fTabHolder->AddTab("Sum");
+    // *** Container of "Average" ***
+    fTabSum = fTabHolder->AddTab("Average");
     fTabSum->SetLayoutManager(new TGVerticalLayout(fTabSum));
     // embedded canvas
     fSumSpectra = new TRootEmbeddedCanvas("SumHEC",fTabSum,fGUIsizeX-10,fGUIsizeY-110);
@@ -415,14 +461,48 @@ PigsGUI::PigsGUI(const TGWindow *p) : TGMainFrame(p, fGUIsizeX, fGUIsizeY)  {
     fTabSum->AddFrame(fSumSpectra, new TGLayoutHints(kLHintsLeft | kLHintsTop,2,2,2,2));
 
     // *** Container of "Arrow" ***
-    fTabArrow = fTabHolder->AddTab("Arrow");
+	fTabArrow = fTabHolder->AddTab("Arrow");
     fTabArrow->SetLayoutManager(new TGVerticalLayout(fTabArrow));
-    // embedded canvas
     fArrowECanvas = new TRootEmbeddedCanvas("ArrowHEC",fTabArrow,fGUIsizeX-10,fGUIsizeY-110);
     Int_t wfArrowECanvas = fArrowECanvas->GetCanvasWindowId();
-    cArrowCanvas = new TCanvas("cArrowCanvas", 10, 10, wfArrowECanvas);
-    fArrowECanvas->AdoptCanvas(cArrowCanvas);
-    fTabArrow->AddFrame(fSumSpectra, new TGLayoutHints(kLHintsLeft | kLHintsTop,2,2,2,2));
+    cArrowCanvas = new TCanvas("cArrowCanvas", 5, 5, wfArrowECanvas);
+    // Draw compass circle
+	TEllipse *el1 = new TEllipse(0.5,0.5,0.48,0.48);
+    el1->SetFillColor(14);
+    el1->SetFillStyle(1001);
+    el1->SetLineColor(1);
+    el1->SetLineWidth(6);
+    el1->Draw();
+    // Add bearing labels
+	TText *north = new TText(0.5,0.9,"N");
+    north->SetTextColor(2);
+    north->SetTextSize(0.1);
+    north->SetTextAlign(12);
+    north->SetTextAlign(21);
+    north->Draw();
+    TText *south = new TText(0.5,0.04,"S");
+    south->SetTextSize(0.1);
+    south->SetTextAlign(12);
+    south->SetTextAlign(21);
+    south->Draw();
+    TText *east = new TText(0.92,0.5,"E");
+    east->SetTextSize(0.1);
+    east->SetTextAlign(12);
+    east->SetTextAlign(21);
+    east->Draw();
+    TText *west = new TText(0.08,0.5,"W");
+    west->SetTextSize(0.1);
+    west->SetTextAlign(12);
+    west->SetTextAlign(21);
+    west->Draw();
+	// Draw initial arrow pointing North
+	ar1 = new TArrow(0.5,0.3,0.5,0.7,0.3,"|>");
+    ar1->SetAngle(30);
+    ar1->SetLineWidth(5);
+    ar1->SetFillColor(4);
+    ar1->Draw();
+	fArrowECanvas->AdoptCanvas(cArrowCanvas);
+    fTabArrow->AddFrame(fArrowECanvas, new TGLayoutHints(kLHintsLeft | kLHintsTop,2,2,2,2));
 
     // *** Container of "Config" ***
     fTabConfig = fTabHolder->AddTab("Config");
@@ -430,8 +510,10 @@ PigsGUI::PigsGUI(const TGWindow *p) : TGMainFrame(p, fGUIsizeX, fGUIsizeY)  {
     // Acquisition time settings
     fControlFrame = new TGGroupFrame(fTabConfig, "Acquisition time [sec]");
     fControlFrame->SetTitlePos(TGGroupFrame::kCenter);
-    fAcqTimeEntry = new TGNumberEntry(fControlFrame, (Double_t) 10.0 ,5,-1, TGNumberFormat::kNESRealOne,
-            TGNumberFormat::kNEAPositive,TGNumberFormat::kNELLimitMinMax, 0.1, 600);
+    fAcqTimeEntry = new TGNumberEntry(fControlFrame, (Double_t) 2.0 ,5,-1, TGNumberFormat::kNESRealOne,
+									  TGNumberFormat::kNEAPositive,TGNumberFormat::kNELLimitMinMax, 0.1, 600);	
+//    fAcqTimeEntry = new TGNumberEntry(fControlFrame, (Double_t) 10.0 ,5,-1, TGNumberFormat::kNESRealOne,
+//            TGNumberFormat::kNEAPositive,TGNumberFormat::kNELLimitMinMax, 0.1, 600);
     fAcqTimeEntry->GetNumberEntry()->SetToolTipText("Time for one DAQ loop in seconds.");
     fAcqTimeEntry->GetNumberEntry()->Connect("TextChanged(char*)", "PigsGUI", this,
             "SetAcquisitionLoopTime()");
@@ -528,6 +610,12 @@ PigsGUI::PigsGUI(const TGWindow *p) : TGMainFrame(p, fGUIsizeX, fGUIsizeY)  {
     static const int32_t tmph = 260;
     fAboutText->MoveResize((fGUIsizeX-tmpw)/2,(fGUIsizeY-tmph)/3,tmpw,tmph);
 }
+
+int PigsGUI::get_fuzzy(const uint32_t[4]){
+    
+    return 120; 
+}
+
 
 PigsGUI::~PigsGUI() {
     if(fVerbose) std::cout<<__PRETTY_FUNCTION__ << std::endl;

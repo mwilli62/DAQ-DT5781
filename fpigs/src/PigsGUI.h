@@ -28,6 +28,8 @@
 #include <TTimeStamp.h>
 #include <TColor.h>
 #include <TArrow.h>
+#include <TEllipse.h>
+#include <TText.h>
 #include <TImage.h>
 #include <TApplication.h>
 #include <Riostream.h>
@@ -61,9 +63,12 @@ public:
     void SetIntegralLimitMin();         // Changes lower limit for energy integration using GUI
     void SetIntegralLimitMax();         // Changes upper limit for energy integration using GUI
     void ToggleUseIntegration();        // Use count sum or energy integration as detector response, set from GUI
-
+//    void Arrow_Coords();                // Changes arrow tip x2,y2
+    int get_fuzzy(const uint32_t[4]);      // Array of counts for fuzzy input
+    
 private:
-    void UpdateHistory();
+    void UpdateArrow();
+	void UpdateHistory();
     TGMainFrame *fMainGUIFrame;         // Main GUI window
     TGLabel *fMainTitle;                //
     TGTextButton *fStartDAQ, *fStopDAQ, *fExitDAQ; // buttons
@@ -82,7 +87,12 @@ private:
     TCanvas *cSumSpectra;
     TGCompositeFrame *fTabArrow;        // container of "Arrow"
     TRootEmbeddedCanvas *fArrowECanvas;
-    TCanvas *cArrowCanvas;
+	TGGroupFrame *fArrowFramex;
+    TGNumberEntry *fArrowEntryx;
+	TGGroupFrame *fArrowFramey;
+    TGNumberEntry *fArrowEntryy;    
+	TCanvas *cArrowCanvas;
+	TArrow *ar1;						// Initialize arrow name
     TGCompositeFrame *fTabConfig;       // container of "Config"
     TGGroupFrame *fControlFrame;
     TGNumberEntry *fAcqTimeEntry;
@@ -117,9 +127,18 @@ private:
     Float_t fScaleFactor[4];            // Scaling of the detector response
     int32_t fIntegralMin, fIntegralMax; // Bin limits for integration used by CalcResponseV2
 
+	float fuzz_angle;
+	float fake_fuzzy;
+	float ox;
+	float oy;
+	float comp_x1;
+	float comp_y1;
+	float comp_x2;
+	float comp_y2;
+	
     static const int32_t fHistColors[4];        // Colors for history plot
-    static const int32_t fGUIsizeX    = 1200;   // GUI size in pixels
-    static const int32_t fGUIsizeY    = 1000;
+    static const int32_t fGUIsizeX    = 600;   // GUI size in pixels
+    static const int32_t fGUIsizeY    = 600;
     static const int32_t fVerbose = 1;  // Verbosity level settings
     const char *fAboutMsg;              // "About" tab text
 
