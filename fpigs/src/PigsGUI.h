@@ -64,8 +64,11 @@ public:
     void SetIntegralLimitMax();         // Changes upper limit for energy integration using GUI
     void ToggleUseIntegration();        // Use count sum or energy integration as detector response, set from GUI
 //    void Arrow_Coords();                // Changes arrow tip x2,y2
-    int get_fuzzy(const uint32_t[4]);      // Array of counts for fuzzy input
-    
+    float GetFuzzy(const uint32_t[4]);    // Array of counts for fuzzy input
+	float NormalizeFuzzyInputs();		// Normalize counts for fuzzy input 
+	double Normalized[4];     // Normalized four member array
+	int32_t result;
+	
 private:
     void UpdateArrow();
 	void UpdateHistory();

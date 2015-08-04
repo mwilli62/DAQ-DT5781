@@ -9,6 +9,9 @@
 #include "PigsGUI.h"
 #include <cstdlib>
 #include <math.h>
+#include <iostream>
+#include <algorithm> 
+
 
 int32_t PigsGUI::InitDAQ() {
     // Initialization of the PigsDAQ object, DPP library, DAQ configuration, storage
@@ -78,7 +81,7 @@ int32_t PigsGUI::RunAcquisition() {
             daq->RefreshCurrHist();             // transfer data to TH1F
             for (ch=0; ch<4;ch++) {
 				cCurrHCanvas->GetPad(ch+1)->cd();
-                //daq->getCurrHist(ch)->Draw();         // plot latest TH1F
+                daq->getCurrHist(ch)->Draw();         // plot latest TH1F
                 cCurrHCanvas->GetPad(ch+1)->Update();
                 ev->spectrum[ch]        = daq->getCurrHist(ch); // save current measurement
                 ev->realTime[ch]        = daq->getRealTime(ch);
@@ -96,9 +99,10 @@ int32_t PigsGUI::RunAcquisition() {
             ev->acqTime = daq->GetAcquisitionLoopTime();
 			ev->arrowAngle = -1.0;               // TODO calculate arrow angle
             gSystem->ProcessEvents();
-            cCurrHCanvas->Modified();
+            cCurrHCanvas->Modified(); 
             storage->getTree()->Fill();
-			get_fuzzy(ev->goodCounts);
+			GetFuzzy(ev->goodCounts);
+			NormalizeFuzzyInputs();
 			UpdateHistory();                     // Updates the history & average tabs
 			UpdateArrow();                       // Updates the arrow tab
 
@@ -611,11 +615,37 @@ PigsGUI::PigsGUI(const TGWindow *p) : TGMainFrame(p, fGUIsizeX, fGUIsizeY)  {
     fAboutText->MoveResize((fGUIsizeX-tmpw)/2,(fGUIsizeY-tmph)/3,tmpw,tmph);
 }
 
-int PigsGUI::get_fuzzy(const uint32_t[4]){
-    
-    return 120; 
-}
+float PigsGUI::NormalizeFuzzyInputs(){
+	cout << "[";
+	int max = 0;
+	int min = 1E9;
+	for(int i=0; i<4; i++){
+		Normalized[i]=ev->goodCounts[i];
+		cout << Normalized[i]<<",";
+	}	
+	
+	for(int i=0; i<4; i++){
+		if (Normalized[i] > max)
+		{
+			max = Normalized[i];
+		}
+		else if (Normalized[i] < min)
+		{
+			min = Normalized[i];
+		}
+		
+	}	
+	cout << "]""\n";
+    cout << min << endl;
+    cout << max << endl;
+	cout << endl;
+	return 0;	
+}						
 
+									
+float PigsGUI::GetFuzzy(const uint32_t[4]){
+	return 0;
+}
 
 PigsGUI::~PigsGUI() {
     if(fVerbose) std::cout<<__PRETTY_FUNCTION__ << std::endl;
