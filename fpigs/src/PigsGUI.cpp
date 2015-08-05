@@ -617,28 +617,24 @@ PigsGUI::PigsGUI(const TGWindow *p) : TGMainFrame(p, fGUIsizeX, fGUIsizeY)  {
 
 float PigsGUI::NormalizeFuzzyInputs(){
 	cout << "[";
-	int max = 0;
-	int min = 1E9;
 	for(int i=0; i<4; i++){
-		Normalized[i]=ev->goodCounts[i];
-		cout << Normalized[i]<<",";
-	}	
-	
-	for(int i=0; i<4; i++){
-		if (Normalized[i] > max)
-		{
-			max = Normalized[i];
-		}
-		else if (Normalized[i] < min)
-		{
-			min = Normalized[i];
-		}
-		
+		RawFuzzArray[i]=ev->goodCounts[i];
+		cout << RawFuzzArray[i]<<",";
 	}	
 	cout << "]""\n";
-    cout << min << endl;
-    cout << max << endl;
 	cout << endl;
+    int min = *std::min_element(RawFuzzArray,RawFuzzArray+4);
+    int max = *std::max_element(RawFuzzArray,RawFuzzArray+4);
+	std::cout << "The smallest element is " << *std::min_element(RawFuzzArray,RawFuzzArray+4) << '\n';
+	std::cout << "The largest element is " << *std::max_element(RawFuzzArray,RawFuzzArray+4) << '\n';
+	cout << endl;
+	
+	for(int i=0; i<4; i++){
+		Normalized[i] = 100*(RawFuzzArray[i]-min)/(max-min);
+		cout << Normalized[i]<<",";
+	}		
+	cout << endl;
+
 	return 0;	
 }						
 
